@@ -245,28 +245,33 @@ ExecHashJoin(HashJoinState *node)
 		node->hj_InnerNotEmpty = false;
 	}
 
-	//insert inner tuple into inner relation (already done by hash table construction)
-	//once inserted, probe outer relation
-	//find matches in outer relation
-	//repeat using outer tuple
+	/*
+	CSI3130: insert inner tuple into inner relation (already done by hash table construction)
+	once inserted (by copying), probe outer relation
+	find matches in outer relation
+	repeat using outer tuple
+	continue until both tables have no more tuples left
+	*/
 
 	/*
-	 * run the hash join process
+	 * CSI3130: run the hash join process alternating between inner and outer tuples
 	 */
-	for (;;)
+	while (!node-> hj_NeedNewInner || !node-> hj_NeedNewOuter) //CSI3130: continue running loop until both relations are exhausted
 	{
+		//CSI3130: run the hash join process on the inner tuple
+		
 		//CSI3130: get the next inner tuple and probe the outer hash table (both hash tables are already built)
-		if (node->hj_NeedNewInner)
-		{
-			innerTupleSlot = ExecHashJoinOuterGetTuple(innerNode,
+		innerTupleSlot = ExecHashJoinOuterGetTuple(innerNode,
 													   node,
 													   &hashvalue);
-			if (TupIsNull(innerTupleSlot))
-			{
-				/* end of join */
-				return NULL;
-			}
+		if (TupIsNull(innerTupleSlot)) //CSI3130: if the tuple is null, it means that the inner relation is either empty or has
+		//finished scanning, so we skip the hash join process for the inner tuple by setting NeedNewInner to false
+		{
+			node->hj_NeedNewInner = false;
+		}
 
+		if (node->hj_NeedNewInner)
+		{
 			node->js.ps.ps_InnerTupleSlot = innerTupleSlot; //stores the current inner tuple
 			econtext->ecxt_innertuple = innerTupleSlot;
 			node->hj_NeedNewInner = false;
@@ -299,7 +304,6 @@ ExecHashJoin(HashJoinState *node)
 			// 	node->hj_NeedNewOuter = true;
 			// 	continue;		/* loop around for a new outer tuple */
 			// }
-		}
 
 		/*
 		 * CSI3130: probe the outer hash table using the inner tuple
@@ -395,25 +399,21 @@ ExecHashJoin(HashJoinState *node)
 				}
 			}
 		}
+	}
 
-
-	/*
-	 * CSI3130: run the entire hash join process again on an outer tuple
-	 */
-	for (;;)
-	{
+		//CSI3130: run the entire hash join process again but on the outer tuple now
 		//CSI3130: get the next outer tuple and probe the inner hash table (both hash tables are already built)
-		if (node->hj_NeedNewOuter)
-		{
-			outerTupleSlot = ExecHashJoinOuterGetTuple(outerNode,
+		outerTupleSlot = ExecHashJoinOuterGetTuple(outerNode,
 													   node,
 													   &hashvalue);
-			if (TupIsNull(outerTupleSlot))
-			{
-				/* end of join */
-				return NULL;
-			}
+		if (TupIsNull(outerTupleSlot)) //CSI3130: if the tuple is null, it means that the outer relation is either empty or has
+		//finished scanning, so we skip the hash join process for the outer tuple by setting NeedNewOuter to false
+		{
+			node->hj_NeedNewOuter = false;
+		}
 
+		if (node->hj_NeedNewOuter)
+		{
 			node->js.ps.ps_OuterTupleSlot = outerTupleSlot; //stores the current outer tuple
 			econtext->ecxt_outertuple = outerTupleSlot;
 			node->hj_NeedNewOuter = false;
@@ -442,9 +442,8 @@ ExecHashJoin(HashJoinState *node)
 			// 	node->hj_NeedNewOuter = true;
 			// 	continue;		/* loop around for a new outer tuple */
 			// }
-		}
 
-		/*
+			/*
 		 * CSI3130: probe the inner hash table using the outer tuple
 		 */
 		for (;;)
@@ -538,7 +537,7 @@ ExecHashJoin(HashJoinState *node)
 				}
 			}
 		}
-	} //end of for loop
+	}
 }
 
 /* ----------------------------------------------------------------
