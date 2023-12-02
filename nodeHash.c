@@ -820,8 +820,7 @@ ExecScanHashBucket(HashJoinState *hjstate,
 	uint32		hashvalue = hjstate->hj_CurHashValue;
 
 	//CSI3130 Check if hash table is inner or outer relation first
-	if (hjstate -> probing_inner) { //CSI3130 Currently probing inner relation  (iterate over inner relation to find match in
-	//outer relation)
+	if (hjstate -> probing_inner) { //CSI3130 Currently probing inner relation
 		hashtable = hjstate -> inner_hj_HashTable;
 		hashTuple = hjstate -> inner_hj_CurTuple;
 		hashvalue = hjstate -> outer_hj_CurHashValue;

@@ -1116,11 +1116,14 @@ typedef struct HashJoinState
 {
 	JoinState	js;				/* its first field is NodeTag */
 	List	   *hashclauses;	/* list of ExprState nodes */
-	HashJoinTable hj_OuterHashTable; //CSI3130: added hash table for outer relation
-	HashJoinTable hj_InnerHashTable; //CSI3130: changed name to reflect the inner relation's hash table
-	uint32		hj_CurHashValue;
-	int			hj_CurBucketNo;
-	HashJoinTuple hj_CurTuple;
+	HashJoinTable outer_hj_HashTable; //CSI3130: added hash table for outer relation
+	HashJoinTable inner_hj_HashTable; //CSI3130: changed name to reflect the inner relation's hash table
+	uint32		inner_hj_CurHashValue; //CSI3130: stores current hash value of inner tuple
+	uint32		outer_hj_CurHashValue; //CSI3130: stores current hash value of outer tuple
+	int			inner_hj_CurBucketNo; //CSI3130: stores inner bucket number
+	int			outer_hj_CurBucketNo; //CSI3130: stores outer bucket number
+	HashJoinTuple inner_hj_CurTuple; //CSI3130: added pointer to current tuple in inner table
+	HashJoinTuple outer_hj_CurTuple; //CSI3130: added pointer to current tuple in outer table
 	List	   *hj_OuterHashKeys;		/* list of ExprState nodes */
 	List	   *hj_InnerHashKeys;		/* list of ExprState nodes */
 	List	   *hj_OuterHashOperators; //CSI3130: added outer hash operations list
@@ -1138,6 +1141,8 @@ typedef struct HashJoinState
 	bool		hj_MatchedOuter;
 	bool		hj_InnerNotEmpty; //CSI3130: added bool to indicate if the inner relation is not empty
 	bool		hj_OuterNotEmpty;
+	bool		probing_inner = false; //CSI3130: indicates whether the inner table is being probed (true), or outer otherwise (false)
+	//by default, we set to false because hash join always probes the outer table first for matches
 } HashJoinState;
 
 
