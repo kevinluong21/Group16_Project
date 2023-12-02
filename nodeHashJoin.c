@@ -653,15 +653,19 @@ ExecHashJoin(HashJoinState *node)
 		/*
 		 * initialize hash-specific info
 		 */
-		hjstate->hj_HashTable = NULL;
+		hjstate->inner_hj_HashTable = NULL; //CSI3130: initialize both hash tables to null
+		hjstate->outer_hj_HashTable = NULL;
 		// CSI3530 and CSI3130...
 		hjstate->hj_FirstOuterTupleSlot = NULL;
 		hjstate->hj_FirstInnerTupleSlot = NULL; // CSI3130: initialize first inner tuple slot as null
 
 		// CSI3530 Plein d'initialisations a faire ici // CSI3130 Initialize here
-		hjstate->hj_CurHashValue = 0;
-		hjstate->hj_CurBucketNo = 0;
-		hjstate->hj_CurTuple = NULL;
+		hjstate->inner_hj_CurHashValue = 0; //CSI3130: initialize values in both hash tables
+		hjstate->inner_hj_CurBucketNo = 0;
+		hjstate->inner_hj_CurTuple = NULL;
+		hjstate->outer_hj_CurHashValue = 0;
+		hjstate->outer_hj_CurBucketNo = 0;
+		hjstate->outer_hj_CurTuple = NULL;
 
 		/*
 		 * Deconstruct the hash clauses into outer and inner argument values, so
