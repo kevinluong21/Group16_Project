@@ -257,7 +257,6 @@ ExecHashJoin(HashJoinState *node)
 	while (!node->hj_NeedNewInner || !node->hj_NeedNewOuter) // CSI3130: continue running loop until both relations are exhausted
 	{
 		// CSI3130: run the hash join process on the inner tuple
-		node -> probing_inner = false; //CSI3130: by default, the outer table is probed using an inner tuple first
 
 		// CSI3130: get the next inner tuple and probe the outer hash table (both hash tables are already built)
 		innerTupleSlot = ExecHashJoinOuterGetTuple(innerNode,
@@ -275,6 +274,7 @@ ExecHashJoin(HashJoinState *node)
 			econtext->ecxt_innertuple = innerTupleSlot;
 			node->hj_NeedNewInner = false;
 			node->hj_MatchedInner = false;
+			node->probing_inner = false; //CSI3130: if inner relation is not empty, then we probe the outer relation
 
 			/*
 			 * now we have an inner tuple, find the corresponding bucket for
@@ -311,7 +311,6 @@ ExecHashJoin(HashJoinState *node)
 			{
 				curtuple = ExecScanHashBucket(node, econtext);
 				if (curtuple == NULL)
-					node -> probing_inner = true; //CSI3130: since we are done probing the outer table, next iteration we probe the inner table
 					break; /* out of matches */
 
 				/*
@@ -418,6 +417,7 @@ ExecHashJoin(HashJoinState *node)
 			econtext->ecxt_outertuple = outerTupleSlot;
 			node->hj_NeedNewOuter = false;
 			node->hj_MatchedOuter = false;
+			node->probing_inner = true; //CSI3130: if outer relation is not empty, we probe the inner relation
 
 			/*
 			 * now we have an outer tuple, find the corresponding bucket for
@@ -450,7 +450,6 @@ ExecHashJoin(HashJoinState *node)
 			{
 				curtuple = ExecScanHashBucket(node, econtext);
 				if (curtuple == NULL)
-					node -> probing_inner = false; //CSI3130: once we are done probing the inner table, set to false so that next iteration we probe the outer table
 					break; /* out of matches */
 
 				/*
