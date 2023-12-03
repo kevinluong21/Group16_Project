@@ -1502,10 +1502,8 @@ create_hashjoin_plan(PlannerInfo *root,
 							  joinclauses,
 							  otherclauses,
 							  hashclauses,
-							  outer_plan,
-							  (Plan *) inner_hash_plan, //CSI3130: name was changed
-							  // CSI3530 //CSI3130 ...
-							  (Plan *) outer_hash_plan, //CSI3130: pass the hash node for the outer relation as a plan for the right tree
+							  (Plan *) outer_hash_plan,
+							  (Plan *) inner_hash_plan,
 							  best_path->jpath.jointype);
 
 	copy_path_costsize(&join_plan->join.plan, &best_path->jpath.path);
