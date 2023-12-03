@@ -76,22 +76,20 @@ ExecHash(HashState *node)
 	 * set expression context
 	 */
 	hashkeys = node->hashkeys; 
-	econtext = outerNode->ps_ExprContext; //CSI3130: access exprcontext of outer node
+	econtext = node->ps.ps_ExprContext;
 
 	/*
 	 * get all inner tuples and insert into the hash table (or temp files)
 	 */
-	for (;;)
-	{
-		slot = ExecProcNode(outerNode);
-		if (TupIsNull(slot))
-			break;
-		hashtable->totalTuples += 1;
-		/* We have to compute the hash value */
-		econtext->ecxt_innertuple = slot;
-		hashvalue = ExecHashGetHashValue(hashtable, econtext, hashkeys);
-		ExecHashTableInsert(hashtable, ExecFetchSlotTuple(slot), hashvalue);
-	}
+	//CSI3130: removed loop
+	slot = ExecProcNode(outerNode);
+	if (TupIsNull(slot))
+		break;
+	hashtable->totalTuples += 1;
+	/* We have to compute the hash value */
+	econtext->ecxt_innertuple = slot;
+	hashvalue = ExecHashGetHashValue(hashtable, econtext, hashkeys);
+	ExecHashTableInsert(hashtable, ExecFetchSlotTuple(slot), hashvalue);
 
 	/* must provide our own instrumentation support */
 	if (node->ps.instrument)
