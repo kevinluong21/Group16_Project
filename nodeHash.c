@@ -75,8 +75,8 @@ ExecHash(HashState *node)
 	/*
 	 * set expression context
 	 */
-	hashkeys = node->hashkeys;
-	econtext = node->ps.ps_ExprContext;
+	hashkeys = node->hashkeys; 
+	econtext = outerNode->ps_ExprContext; //CSI3130: access exprcontext of outer node
 
 	/*
 	 * get all inner tuples and insert into the hash table (or temp files)
