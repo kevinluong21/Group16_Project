@@ -1128,8 +1128,8 @@ typedef struct HashJoinState
 	List	   *hj_InnerHashKeys;		/* list of ExprState nodes */
 	List	   *hj_OuterHashOperators; //CSI3130: added outer hash operations list
 	List	   *hj_InnerHashOperators;		/* list of operator OIDs */
-	TupleTableSlot *hj_OuterTupleSlot;
-	TupleTableSlot *hj_InnerTupleSlot; //CSI3130: added a slot for the inner tuple being processed
+	TupleTableSlot hj_OuterTupleSlot;
+	TupleTableSlot hj_InnerTupleSlot; //CSI3130: added a slot for the inner tuple being processed
 	TupleTableSlot *hj_HashTupleSlot;
 	TupleTableSlot *hj_NullOuterTupleSlot; //CSI3130: added a slot for null outer tuples
 	TupleTableSlot *hj_NullInnerTupleSlot;
