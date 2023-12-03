@@ -280,10 +280,10 @@ ExecHashJoin(HashJoinState *node)
 			 * now we have an inner tuple, find the corresponding bucket for
 			 * this tuple from the outer hash table
 			 */
-			node->hj_CurHashValue = hashvalue;
+			node->inner_hj_CurHashValue = hashvalue;
 			ExecHashGetBucketAndBatch(outer_hashtable, hashvalue,
 									  &node->hj_CurBucketNo, &batchno);
-			node->hj_CurTuple = NULL;
+			node->inner_hj_CurTuple = NULL;
 
 			/*
 			 * Now we've got an inner tuple and the corresponding hash bucket,
@@ -423,10 +423,10 @@ ExecHashJoin(HashJoinState *node)
 			 * now we have an outer tuple, find the corresponding bucket for
 			 * this tuple from the inner hash table
 			 */
-			node->hj_CurHashValue = hashvalue;
+			node->outer_hj_CurHashValue = hashvalue;
 			ExecHashGetBucketAndBatch(inner_hashtable, hashvalue,
 									  &node->hj_CurBucketNo, &batchno);
-			node->hj_CurTuple = NULL;
+			node->outer_hj_CurTuple = NULL;
 
 			// CSI3130: batches are disabled, this code block is not necessary
 			//  if (batchno != outer_hashtable->curbatch)
