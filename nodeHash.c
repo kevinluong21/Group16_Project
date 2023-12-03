@@ -810,7 +810,7 @@ ExecHashGetBucketAndBatch(HashJoinTable hashtable,
  *
  * The current outer tuple must be stored in econtext->ecxt_outertuple.
  */
-HashJoinTuple //CSI3130 Changed return type from HeapTuple to HashJoinTuple
+HeapTuple //CSI3130: cannot change to HashJoinTulpe because it would require modifying header file (we do not have access to this file)
 ExecScanHashBucket(HashJoinState *hjstate,
 				   ExprContext *econtext)
 {
@@ -871,7 +871,7 @@ ExecScanHashBucket(HashJoinState *hjstate,
 				else {
 					hjstate->outer_hj_CurTuple = hashTuple;
 				}
-				return hashTuple; //CSI3130: return hash tuple instead of heap tuple
+				return heapTuple;
 			}
 		}
 
