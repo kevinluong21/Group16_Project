@@ -84,27 +84,22 @@ ExecHash(HashState *node)
 	//CSI3130: removed loop
 	slot = ExecProcNode(outerNode);
 
-
-	if (!TupIsNull(slot)) { //CSI3130: check if tuple is null, if not insert into hash table
-		hashtable->totalTuples += 1;
-		/* We have to compute the hash value */
-		econtext->ecxt_innertuple = slot;
-		hashvalue = ExecHashGetHashValue(hashtable, econtext, hashkeys);
-		ExecHashTableInsert(hashtable, ExecFetchSlotTuple(slot), hashvalue);
+	if(TupIsNull(slot)) { //CSI3130: null tuple so return null
+		return NULL;
 	}
+
+	hashtable->totalTuples += 1;
+	/* We have to compute the hash value */
+	econtext->ecxt_innertuple = slot;
+	econtext->ecxt_outertuple = slot; //CSI3130: we set outer tuple to the same slot as well because we could be probing the inner or outer relation
+	hashvalue = ExecHashGetHashValue(hashtable, econtext, hashkeys);
+	ExecHashTableInsert(hashtable, ExecFetchSlotTuple(slot), hashvalue);
 
 	/* must provide our own instrumentation support */
 	if (node->ps.instrument)
 		InstrStopNodeMulti(node->ps.instrument, hashtable->totalTuples);
 
-	/*
-	 * We do not return the hash table directly because it's not a subtype of
-	 * Node, and so would violate the MultiExecProcNode API.  Instead, our
-	 * parent Hashjoin node is expected to know how to fish it out of our node
-	 * state.  Ugly but not really worth cleaning up, since Hashjoin knows
-	 * quite a bit more about Hash besides that.
-	 */
-	return NULL;
+	return slot; //CSI3130: return slot that was inserted
 }
 // FIN DE LA FONCTION CSI3530 // CSI3130 End of function
 
