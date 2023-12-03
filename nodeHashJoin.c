@@ -257,6 +257,7 @@ ExecHashJoin(HashJoinState *node)
 	while (!node->hj_NeedNewInner || !node->hj_NeedNewOuter) // CSI3130: continue running loop until both relations are exhausted
 	{
 		// CSI3130: run the hash join process on the inner tuple
+		node -> probing_inner = false; //CSI3130: by default, the outer table is probed using an inner tuple first
 
 		// CSI3130: get the next inner tuple and probe the outer hash table (both hash tables are already built)
 		innerTupleSlot = ExecHashJoinOuterGetTuple(innerNode,

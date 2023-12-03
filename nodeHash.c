@@ -815,9 +815,11 @@ ExecScanHashBucket(HashJoinState *hjstate,
 				   ExprContext *econtext)
 {
 	List	   *hjclauses = hjstate->hashclauses;
-	HashJoinTable hashtable = hjstate->hj_HashTable;
-	HashJoinTuple hashTuple = hjstate->hj_CurTuple;
-	uint32		hashvalue = hjstate->hj_CurHashValue;
+	HashJoinTable hashtable; //CSI3130: initialize based on whether probing inner or outer relation
+	HashJoinTuple hashTuple; //CSI3130: initialize based on whether probing inner or outer relation
+	uint32		hashvalue; //CSI3130: initialize based on whether probing inner or outer relation
+	int			bucketNo; //CSI3130: initialize based on whether probing inner or outer relation
+	TupleTableSlot tupleSlot; //CSI3130: initialize based on whether probing inner or outer relation
 
 	//CSI3130 Check if hash table is inner or outer relation first
 	if (hjstate -> probing_inner) { //CSI3130 Currently probing inner relation
@@ -840,7 +842,7 @@ ExecScanHashBucket(HashJoinState *hjstate,
 	 * the last tuple returned from the current bucket.
 	 */
 	if (hashTuple == NULL)
-		hashTuple = hashtable->buckets[hjstate->hj_CurBucketNo];
+		hashTuple = hashtable->buckets[bucketNo];
 	else
 		hashTuple = hashTuple->next;
 
@@ -853,7 +855,7 @@ ExecScanHashBucket(HashJoinState *hjstate,
 
 			/* insert hashtable's tuple into exec slot so ExecQual sees it */
 			inntuple = ExecStoreTuple(heapTuple,
-									  hjstate->hj_HashTupleSlot,
+									  tupleSlot,
 									  InvalidBuffer,
 									  false);	/* do not pfree */
 			econtext->ecxt_innertuple = inntuple;
@@ -863,8 +865,13 @@ ExecScanHashBucket(HashJoinState *hjstate,
 
 			if (ExecQual(hjclauses, econtext, false))
 			{
-				hjstate->hj_CurTuple = hashTuple;
-				return heapTuple;
+				if (hjstate -> probing_inner) { //CSI3130: set current tuple based on the table we are currently probing
+					hjstate->inner_hj_CurTuple = hashTuple;
+				}
+				else {
+					hjstate->outer_hj_CurTuple = hashTuple;
+				}
+				return hashTuple; //CSI3130: return hash tuple instead of heap tuple
 			}
 		}
 
