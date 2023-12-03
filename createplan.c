@@ -1502,7 +1502,7 @@ create_hashjoin_plan(PlannerInfo *root,
 							  joinclauses,
 							  otherclauses,
 							  hashclauses,
-							  (Plan *) outer_hash_plan,
+							  (Plan *) outer_hash_plan, //CSI3130: pass an outer hash plan for left tree and inner hash plan for right tree
 							  (Plan *) inner_hash_plan,
 							  best_path->jpath.jointype);
 
