@@ -83,9 +83,21 @@ ExecHash(HashState *node)
 	 */
 	//CSI3130: removed loop
 	slot = ExecProcNode(outerNode);
-	if (TupIsNull(slot))
-		break;
+
+
+	/*CSI 3130 [DRAFT, Note to teammates] 
+	
+	Put this whole section into comments
+	Since it's a condition of some sorts it might serve later or not
+
+	--------------------------
+	//if (TupIsNull(slot))
+	//	break;
 	hashtable->totalTuples += 1;
+	-----------------------------
+
+	
+	*/
 	/* We have to compute the hash value */
 	econtext->ecxt_innertuple = slot;
 	hashvalue = ExecHashGetHashValue(hashtable, econtext, hashkeys);
