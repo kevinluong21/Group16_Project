@@ -1450,10 +1450,8 @@ create_hashjoin_plan(PlannerInfo *root,
 	List	   *otherclauses;
 	List	   *hashclauses;
 	HashJoin   *join_plan;
-	Hash	   *inner_hash_plan; //CSI3130: created a hash plan for both the inner and outer relations
-	Hash	   *outer_hash_plan; //CSI3130: created a hash plan for both the inner and outer relations
-	// CSI3530 IL FAUT AJOUTER UN AUTRE HASH_PLAN, DEUX AU TOTAL (INNER ET OUTER)
-	// CSI3130 You must add another hash plan, two in total (inner and outer)
+	Hash	   *inner_hash_plan; // CSI 3130: Inner hash plan
+	Hash *outer_hash_plan; //CSI 3130: Outer hash plan 
 
 	/* Get the join qual clauses (in plain expression form) */
 	if (IS_OUTER_JOIN(best_path->jpath.jointype))
