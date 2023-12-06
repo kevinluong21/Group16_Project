@@ -44,17 +44,9 @@ static void ExecHashIncreaseNumBatches(HashJoinTable hashtable);
 TupleTableSlot *
 ExecHash(HashState *node)
 {
-	// CSI3530 CREER LES VARIABLES POUR LE PLAN , HASHJOINTABLE ET..
-	// CSI3530 OBTENEZ L'ETAT DU OUTER NODE
-	// CSI3530 INITIALISEZ LE EXPRESSION CONTEXT
-	// CSI3530 COMPUTE HASH VALUE
-	//...
-	// CSI3130 For variables, plan, hash join table get the state of outer node
-	// CSI3130 Initialize the expression context and compute hash value
+	
 
-	// elog(ERROR, "Hash node does not support ExecProcNode call convention"); //CSI3130 Removed error message
-
-	//CSI3130 Copy over the content of the MultiExecHash function
+	
 	PlanState  *outerNode;
 	List	   *hashkeys;
 	HashJoinTable hashtable;
@@ -75,12 +67,23 @@ ExecHash(HashState *node)
 	/*
 	 * set expression context
 	 */
-	hashkeys = node->hashkeys; 
+	hashkeys = node->hashkeys;
 	econtext = node->ps.ps_ExprContext;
+
+	//CSI3130 For Debugging purposes: Error messages
+	
+	if(hashtable){}{elog(WARNING, "Error at ExecHash : hashtable is NULL ");}//CSI3130: This error message will be displayed if hashtable causes a seg fault
+	if(outerNode){}{elog(WARNING, "Error at ExecHash : outerNode is NULL ");}
+	if(hashkeys){}{elog(WARNING, "Error at ExecHash : hashkeys is NULL ");}
+	if(slot){}{elog(WARNING, "Error at ExecHash : slot is NULL ");}
+	if(econtext){}{elog(WARNING, "Error at ExecHash : econtext is NULL ");}
+
 
 	/*
 	 * get all inner tuples and insert into the hash table (or temp files)
 	 */
+	
+
 	//CSI3130: removed loop
 	slot = ExecProcNode(outerNode);
 
@@ -88,23 +91,39 @@ ExecHash(HashState *node)
 		return NULL;
 	}
 
-	//CSI3130 Some lines are tagged with NodeErrorHandling: Those lines don't work because hashtable is a NULL pointer
-	//CSI3130 When we'll be able to pass a proper node to ExecHash, they will eventually work
-		
-		
 
-	if (hashtable){hashtable->totalTuples += 1;}else{elog(WARNING, "Error at ExecHash || hashtable->totalTuples += 1; || hashtable is NULL ");} //CSI3130 NodeErrorHandling
-	
+		
+		//CSI3130 Some lines can cause seg faults when a value there is NULL, so we will for debugging purpose
+		//CSI3130 Handle those seg faults and print error messages
+		
+		
+		
+	if (hashtable){hashtable->totalTuples += 1;}else{elog(WARNING, "Seg Fault at ExecHash || hashtable ");} //CSI3130 Handling eventual seg fault
+		
 	/* We have to compute the hash value */
 	econtext->ecxt_innertuple = slot;
-	econtext->ecxt_outertuple = slot; //CSI3130: we set outer tuple to the same slot as well because we could be probing the inner or outer relation
+	econtext->ecxt_outertuple = slot;//CSI3130: we set outer tuple to the same slot as well because we could be probing the inner or outer relation
 	hashvalue = ExecHashGetHashValue(hashtable, econtext, hashkeys);
-	ExecHashTableInsert(hashtable, ExecFetchSlotTuple(slot), hashvalue);
-	if (hashtable){ExecHashTableInsert(hashtable, ExecFetchSlotTuple(slot), hashvalue);}else{elog(WARNING, "Error at ExecHash || ExecHashTableInsert(hashtable, ExecFetchSlotTuple(slot), hashvalue); ||  hashtable is NULL ");}//CSI3130 NodeErrorHandling
+		
+		
+	if (hashtable){ExecHashTableInsert(hashtable, ExecFetchSlotTuple(slot), hashvalue);}else{elog(WARNING, "Seg Fault at ExecHash || hashtable ");}//CSI3130 Handling eventual seg fault
 	
+
 	/* must provide our own instrumentation support */
 	if (node->ps.instrument)
 		InstrStopNodeMulti(node->ps.instrument, hashtable->totalTuples);
+
+	/*
+	 * We do not return the hash table directly because it's not a subtype of
+	 * Node, and so would violate the MultiExecProcNode API.  Instead, our
+	 * parent Hashjoin node is expected to know how to fish it out of our node
+	 * state.  Ugly but not really worth cleaning up, since Hashjoin knows
+	 * quite a bit more about Hash besides that.
+	 */
+	
+
+	//-----
+	
 
 	return slot; //CSI3130: return slot that was inserted
 }
@@ -310,7 +329,7 @@ ExecHashTableCreate(Hash *node, List *hashOperators)
 	hashtable->curbatch = 0;
 	hashtable->nbatch_original = nbatch;
 	hashtable->nbatch_outstart = nbatch;
-	hashtable->growEnabled = false; //CSI3130 Batches disabled
+	hashtable->growEnabled = false;//CSI3130 Batches disabled
 	hashtable->totalTuples = 0;
 	hashtable->innerBatchFile = NULL;
 	hashtable->outerBatchFile = NULL;
@@ -817,34 +836,16 @@ ExecScanHashBucket(HashJoinState *hjstate,
 				   ExprContext *econtext)
 {
 	List	   *hjclauses = hjstate->hashclauses;
-	HashJoinTable hashtable; //CSI3130: initialize based on whether probing inner or outer relation
-	HashJoinTuple hashTuple; //CSI3130: initialize based on whether probing inner or outer relation
-	uint32		hashvalue; //CSI3130: initialize based on whether probing inner or outer relation
-	int			bucketNo; //CSI3130: initialize based on whether probing inner or outer relation
-	TupleTableSlot tupleSlot; //CSI3130: initialize based on whether probing inner or outer relation
-
-	//CSI3130 Check if hash table is inner or outer relation first
-	if (hjstate -> probing_inner) { //CSI3130 Currently probing inner relation
-		hashtable = hjstate -> inner_hj_HashTable;
-		hashTuple = hjstate -> inner_hj_CurTuple;
-		hashvalue = hjstate -> outer_hj_CurHashValue;
-		bucketNo = hjstate -> inner_hj_CurBucketNo;
-		tupleSlot = hjstate -> hj_InnerTupleSlot;
-	}
-	else {
-		hashtable = hjstate -> outer_hj_HashTable;
-		hashTuple = hjstate -> outer_hj_CurTuple;
-		hashvalue = hjstate -> inner_hj_CurHashValue;
-		bucketNo = hjstate -> outer_hj_CurBucketNo;
-		tupleSlot = hjstate -> hj_OuterTupleSlot;
-	}
+	HashJoinTable hashtable = hjstate->hj_HashTable;
+	HashJoinTuple hashTuple = hjstate->hj_CurTuple;
+	uint32		hashvalue = hjstate->hj_CurHashValue;
 
 	/*
 	 * hj_CurTuple is NULL to start scanning a new bucket, or the address of
 	 * the last tuple returned from the current bucket.
 	 */
 	if (hashTuple == NULL)
-		hashTuple = hashtable->buckets[bucketNo];
+		hashTuple = hashtable->buckets[hjstate->hj_CurBucketNo];
 	else
 		hashTuple = hashTuple->next;
 
@@ -857,7 +858,7 @@ ExecScanHashBucket(HashJoinState *hjstate,
 
 			/* insert hashtable's tuple into exec slot so ExecQual sees it */
 			inntuple = ExecStoreTuple(heapTuple,
-									  &tupleSlot,
+									  hjstate->hj_HashTupleSlot,
 									  InvalidBuffer,
 									  false);	/* do not pfree */
 			econtext->ecxt_innertuple = inntuple;
@@ -867,12 +868,7 @@ ExecScanHashBucket(HashJoinState *hjstate,
 
 			if (ExecQual(hjclauses, econtext, false))
 			{
-				if (hjstate -> probing_inner) { //CSI3130: set current tuple based on the table we are currently probing
-					hjstate->inner_hj_CurTuple = hashTuple;
-				}
-				else {
-					hjstate->outer_hj_CurTuple = hashTuple;
-				}
+				hjstate->hj_CurTuple = hashTuple;
 				return heapTuple;
 			}
 		}
