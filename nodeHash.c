@@ -70,14 +70,7 @@ ExecHash(HashState *node)
 	hashkeys = node->hashkeys;
 	econtext = node->ps.ps_ExprContext;
 
-	//CSI3130 For Debugging purposes: Error messages
 	
-	if(hashtable){}{elog(WARNING, "Error at ExecHash : hashtable is NULL ");}//CSI3130: This error message will be displayed if hashtable causes a seg fault
-	if(outerNode){}{elog(WARNING, "Error at ExecHash : outerNode is NULL ");}
-	if(hashkeys){}{elog(WARNING, "Error at ExecHash : hashkeys is NULL ");}
-	if(slot){}{elog(WARNING, "Error at ExecHash : slot is NULL ");}
-	if(econtext){}{elog(WARNING, "Error at ExecHash : econtext is NULL ");}
-
 
 	/*
 	 * get all inner tuples and insert into the hash table (or temp files)
@@ -92,18 +85,43 @@ ExecHash(HashState *node)
 	}
 
 
+	
 		
-		//CSI3130 Some lines can cause seg faults when a value there is NULL, so we will for debugging purpose
-		//CSI3130 Handle those seg faults and print error messages
+	//CSI3130 Some lines can cause seg faults when a value there is NULL, so we will for debugging purpose
+	//CSI3130 Handle those seg faults and print error messages
 		
 		
 		
 	if (hashtable){hashtable->totalTuples += 1;}else{elog(WARNING, "Seg Fault at ExecHash || hashtable ");} //CSI3130 Handling eventual seg fault
 		
 	/* We have to compute the hash value */
+
+	
+	//CSI3130 For Debugging purposes: Error messages
+	
+	if(hashtable){}{elog(WARNING, "Error at ExecHash : hashtable is NULL ");}//CSI3130: This error message will be displayed if hashtable causes a seg fault
+	if(outerNode){}{elog(WARNING, "Error at ExecHash : outerNode is NULL ");}
+	if(hashkeys){}{elog(WARNING, "Error at ExecHash : hashkeys is NULL ");}
+	if(slot){}{elog(WARNING, "Error at ExecHash : slot is NULL ");}
+	if(econtext){}{elog(WARNING, "Error at ExecHash : econtext is NULL ");}
+
+
+
+	elog(LOG, "TRY: econtext->ecxt_innertuple = slot;");//CSI3130: For debugging
+
 	econtext->ecxt_innertuple = slot;
+
+	elog(LOG, "SUCCESS: econtext->ecxt_innertuple = slot;____________");//CSI3130: For debugging
+
+
+	elog(LOG, "TRY: econtext->ecxt_outertuple = slot;");//CSI3130: For debugging
 	econtext->ecxt_outertuple = slot;//CSI3130: we set outer tuple to the same slot as well because we could be probing the inner or outer relation
+	elog(LOG, "SUCCESS: econtext->ecxt_outertuple = slot;__________");//CSI3130: For debugging
+
+
+	elog(LOG,"TRY: hashvalue = ExecHashGetHashValue(hashtable, econtext, hashkeys);");//CSI3130: For debugging
 	hashvalue = ExecHashGetHashValue(hashtable, econtext, hashkeys);
+	elog(LOG,"SUCCES: hashvalue = ExecHashGetHashValue(hashtable, econtext, hashkeys);_________");//CSI3130: For debugging
 		
 		
 	if (hashtable){ExecHashTableInsert(hashtable, ExecFetchSlotTuple(slot), hashvalue);}else{elog(WARNING, "Seg Fault at ExecHash || hashtable ");}//CSI3130 Handling eventual seg fault
@@ -836,44 +854,111 @@ ExecScanHashBucket(HashJoinState *hjstate,
 				   ExprContext *econtext)
 {
 	List	   *hjclauses = hjstate->hashclauses;
-	HashJoinTable hashtable = hjstate->hj_HashTable;
-	HashJoinTuple hashTuple = hjstate->hj_CurTuple;
-	uint32		hashvalue = hjstate->hj_CurHashValue;
+	HashJoinTable hashtable; //CSI3130: initialize based on whether probing inner or outer relation
+	HashJoinTuple hashTuple; //CSI3130: initialize based on whether probing inner or outer relation
+	uint32		hashvalue; //CSI3130: initialize based on whether probing inner or outer relation
+	int			bucketNo; //CSI3130: initialize based on whether probing inner or outer relation
+	TupleTableSlot tupleSlot; //CSI3130: initialize based on whether probing inner or outer relation
+	
+	//CSI3130 Check if hash table is inner or outer relation first
+	if (hjstate -> probing_inner) { //CSI3130 Currently probing inner relation
+		hashtable = hjstate -> inner_hj_HashTable;
+		hashTuple = hjstate -> inner_hj_CurTuple;
+		hashvalue = hjstate -> outer_hj_CurHashValue;
+		bucketNo = hjstate -> inner_hj_CurBucketNo;
+		tupleSlot = hjstate -> hj_InnerTupleSlot;
+	}
+	else {
+		hashtable = hjstate -> outer_hj_HashTable;
+		hashTuple = hjstate -> outer_hj_CurTuple;
+		hashvalue = hjstate -> inner_hj_CurHashValue;
+		bucketNo = hjstate -> outer_hj_CurBucketNo;
+		tupleSlot = hjstate -> hj_OuterTupleSlot;
+	}
+
+
 
 	/*
 	 * hj_CurTuple is NULL to start scanning a new bucket, or the address of
 	 * the last tuple returned from the current bucket.
 	 */
 	if (hashTuple == NULL)
-		hashTuple = hashtable->buckets[hjstate->hj_CurBucketNo];
+		hashTuple = hashtable->buckets[bucketNo];
 	else
 		hashTuple = hashTuple->next;
 
+	//CSI3130: For debugging purposes (Error messages)
+
+	if (hashtable){}{elog(WARNING,"Error at ExecScanHashBucket || hashtable is null");}
+	if (hashTuple){}{elog(WARNING,"Error at ExecScanHashBucket || hashTuple is null");}
+	if (hashvalue){}{elog(WARNING,"Error at ExecScanHashBucket || hashvalue is null");}
+	if (bucketNo ){}{elog(WARNING,"Error at ExecScanHashBucket || bucketNo  is null");}
+	
+	 
+		 
+		
+		 
+
 	while (hashTuple != NULL)
 	{
+		elog(LOG, "ExecScanHashBucket: Entering loop");//CSI3130: For debugging
+
+		elog(LOG, "TRY (ExecScanHashBucket): if (hashTuple->hashvalue == hashvalue)");//CSI3130: For debugging
+
 		if (hashTuple->hashvalue == hashvalue)
-		{
+		{	
+			elog(LOG, "TRY (ExecScanHashBucket): HeapTuple	heapTuple = &hashTuple->htup;");//CSI3130: For debugging
+
 			HeapTuple	heapTuple = &hashTuple->htup;
+
+			elog(LOG, "SUCCESS (ExecScanHashBucket): HeapTuple	heapTuple = &hashTuple->htup;");//CSI3130: For debugging
+
+			
 			TupleTableSlot *inntuple;
+
+			elog(LOG, "TRY (ExecScanHashBucket): ExecStoreTuple");//CSI3130: For debugging
 
 			/* insert hashtable's tuple into exec slot so ExecQual sees it */
 			inntuple = ExecStoreTuple(heapTuple,
-									  hjstate->hj_HashTupleSlot,
+									  &tupleSlot,
 									  InvalidBuffer,
 									  false);	/* do not pfree */
 			econtext->ecxt_innertuple = inntuple;
 
+
+			elog(LOG, "SUCCESS (ExecScanHashBucket): ExecStoreTuple");//CSI3130: For debugging
+
+
 			/* reset temp memory each time to avoid leaks from qual expr */
 			ResetExprContext(econtext);
 
+			elog(LOG, "TRY (ExecEqual): ExecStoreTuple");//CSI3130: For debugging
+
 			if (ExecQual(hjclauses, econtext, false))
 			{
-				hjstate->hj_CurTuple = hashTuple;
+				if (hjstate -> probing_inner) { //CSI3130: set current tuple based on the table we are currently probing
+					hjstate->inner_hj_CurTuple = hashTuple;
+				}
+				else {
+					hjstate->outer_hj_CurTuple = hashTuple;
+				}
 				return heapTuple;
 			}
+
+			elog(LOG, "SUCCESS (ExecEqual): ExecStoreTuple");//CSI3130: For debugging
+
+
+			elog(LOG, "ExecScanHashBucket: Successfully exited if statement");//CSI3130: For debugging
+
 		}
 
+		elog(LOG, "ExecScanHashBucket: Successfully exited if statement");//CSI3130: For debugging
+
+
 		hashTuple = hashTuple->next;
+
+		elog(LOG, "ExecScanHashBucket: Successfully exited loop");//CSI3130: For debugging
+
 	}
 
 	/*
