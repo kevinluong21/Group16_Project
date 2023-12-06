@@ -644,11 +644,14 @@ ExecHashJoin(HashJoinState *node)
 		 * initialize tuple type and projection info
 		 */
 		ExecAssignResultTypeFromTL(&hjstate->js.ps);
-		ExecAssignProjectionInfo(&hjstate->js.ps); // CSI3530 and CSI3130
+		ExecAssignProjectionInfo(&hjstate->js.ps, NULL); // CSI3530 and CSI3130
 
 		ExecSetSlotDescriptor(hjstate->hj_OuterTupleSlot,
 							  ExecGetResultType(outerPlanState(hjstate)),
-							  false); // CSI3530 and CSI3130
+							  false); //CSI3130
+		ExecSetSlotDescriptor(hjstate->hj_InnerTupleSlot,
+							  ExecGetResultType(innerPlanState(hjstate)),
+							  false); //CSI3130
 
 		/*
 		 * initialize hash-specific info
@@ -666,6 +669,7 @@ ExecHashJoin(HashJoinState *node)
 		hjstate->outer_hj_CurHashValue = 0;
 		hjstate->outer_hj_CurBucketNo = 0;
 		hjstate->outer_hj_CurTuple = NULL;
+		hjstate->probing_inner = false; //CSI3130: by default, set to false (use the inner tuple first to probe the outer relation)
 
 		/*
 		 * Deconstruct the hash clauses into outer and inner argument values, so
@@ -723,10 +727,16 @@ ExecHashJoin(HashJoinState *node)
 		/*
 		 * Free hash table
 		 */
-		if (node->hj_HashTable)
+		if (node->inner_hj_HashTable) //CSI3130: clear inner hash table
 		{
-			ExecHashTableDestroy(node->hj_HashTable);
-			node->hj_HashTable = NULL;
+			ExecHashTableDestroy(node->inner_hj_HashTable);
+			node->inner_hj_HashTable = NULL;
+		}
+
+		if (node->outer_hj_HashTable) //CSI3130: clear outer hash table
+		{
+			ExecHashTableDestroy(node->outer_hj_HashTable);
+			node->outer_hj_HashTable = NULL;
 		}
 
 		/*
