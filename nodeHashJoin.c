@@ -254,7 +254,7 @@ ExecHashJoin(HashJoinState *node)
 	/*
 	 * CSI3130: run the hash join process alternating between inner and outer tuples
 	 */
-	while (!node->hj_NeedNewInner || !node->hj_NeedNewOuter) // CSI3130: continue running loop until both relations are exhausted
+	while (!node->hj_NeedNewInner && !node->hj_NeedNewOuter) // CSI3130: continue running loop until both relations are exhausted
 	{
 		// CSI3130: run the hash join process on the inner tuple
 
@@ -282,8 +282,8 @@ ExecHashJoin(HashJoinState *node)
 			 */
 			node->inner_hj_CurHashValue = hashvalue;
 			ExecHashGetBucketAndBatch(outer_hashtable, hashvalue,
-									  &node->hj_CurBucketNo, &batchno);
-			node->inner_hj_CurTuple = NULL;
+									  &node->outer_hj_CurBucketNo, &batchno);
+			node->outer_hj_CurTuple = NULL; //CSI3130: set the outer tuple to null so we can start probing the outer relation in ExecScanHashBucket
 
 			/*
 			 * Now we've got an inner tuple and the corresponding hash bucket,
@@ -318,7 +318,7 @@ ExecHashJoin(HashJoinState *node)
 				 */
 				// CSI3130: inntuple is the matching tuple in the outer hash table
 				inntuple = ExecStoreTuple(curtuple,
-										  node->hj_HashTupleSlot,
+										  node->hj_OuterTupleSlot,
 										  InvalidBuffer,
 										  false);	  /* don't pfree this tuple */
 				econtext->ecxt_outertuple = inntuple; // CSI3130: set the outer tuple as the matching tuple
@@ -425,8 +425,8 @@ ExecHashJoin(HashJoinState *node)
 			 */
 			node->outer_hj_CurHashValue = hashvalue;
 			ExecHashGetBucketAndBatch(inner_hashtable, hashvalue,
-									  &node->hj_CurBucketNo, &batchno);
-			node->outer_hj_CurTuple = NULL;
+									  &node->inner_hj_CurBucketNo, &batchno);
+			node->inner_hj_CurTuple = NULL; //CSI3130: set inner tuple to null so we can begin probing the inner relation in ExecScanHashBucket
 
 			// CSI3130: batches are disabled, this code block is not necessary
 			//  if (batchno != outer_hashtable->curbatch)
