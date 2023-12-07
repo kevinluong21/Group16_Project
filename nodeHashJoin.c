@@ -116,7 +116,7 @@ ExecHashJoin(HashJoinState *node)
 
 	elog(WARNING,"I'm trying ResetExprContext(econtext);");
 	ResetExprContext(econtext);
-	elog(WARNING, "Success: ResetExprContext");
+
 	/*
 	 * if this is the first call, build the hash table for inner relation
 	 */
@@ -142,21 +142,21 @@ ExecHashJoin(HashJoinState *node)
 		 * outer plan node.  If we succeed, we have to stash it away for later
 		 * consumption by ExecHashJoinOuterGetTuple.
 		 */
-		if (node->js.jointype == JOIN_LEFT ||
-			(outerNode->plan->startup_cost < inner_hashNode->ps.plan->total_cost &&
-			 !node->hj_OuterNotEmpty))
-		{
-			node->hj_FirstOuterTupleSlot = ExecProcNode(outerNode);
-			if (TupIsNull(node->hj_FirstOuterTupleSlot))
-			{
-				node->hj_OuterNotEmpty = false;
-				return NULL;
-			}
-			else
-				node->hj_OuterNotEmpty = true;
-		}
-		else
-			node->hj_FirstOuterTupleSlot = NULL;
+		// if (node->js.jointype == JOIN_LEFT ||
+		// 	(outerNode->plan->startup_cost < inner_hashNode->ps.plan->total_cost &&
+		// 	 !node->hj_OuterNotEmpty))
+		// {
+		// 	node->hj_FirstOuterTupleSlot = ExecProcNode(outerNode);
+		// 	if (TupIsNull(node->hj_FirstOuterTupleSlot))
+		// 	{
+		// 		node->hj_OuterNotEmpty = false;
+		// 		return NULL;
+		// 	}
+		// 	else
+		// 		node->hj_OuterNotEmpty = true;
+		// }
+		// else
+		// 	node->hj_FirstOuterTupleSlot = NULL;
 
 		/*
 		 * create the hash table
@@ -195,21 +195,21 @@ ExecHashJoin(HashJoinState *node)
 	// CSI3130: on first call, also build the outer relation hash table
 	if (outer_hashtable == NULL) // CSI3530 and CSI3130: build a hash table on outer relation
 	{
-		if (node->js.jointype == JOIN_LEFT ||
-			(innerNode->plan->startup_cost < outer_hashNode->ps.plan->total_cost &&
-			 !node->hj_InnerNotEmpty))
-		{
-			node->hj_FirstInnerTupleSlot = ExecProcNode(innerNode);
-			if (TupIsNull(node->hj_FirstInnerTupleSlot))
-			{
-				node->hj_InnerNotEmpty = false;
-				return NULL;
-			}
-			else
-				node->hj_InnerNotEmpty = true;
-		}
-		else
-			node->hj_FirstInnerTupleSlot = NULL;
+		// if (node->js.jointype == JOIN_LEFT ||
+		// 	(innerNode->plan->startup_cost < outer_hashNode->ps.plan->total_cost &&
+		// 	 !node->hj_InnerNotEmpty))
+		// {
+		// 	node->hj_FirstInnerTupleSlot = ExecProcNode(innerNode);
+		// 	if (TupIsNull(node->hj_FirstInnerTupleSlot))
+		// 	{
+		// 		node->hj_InnerNotEmpty = false;
+		// 		return NULL;
+		// 	}
+		// 	else
+		// 		node->hj_InnerNotEmpty = true;
+		// }
+		// else
+		// 	node->hj_FirstInnerTupleSlot = NULL;
 
 		/*
 		 * create the hash table
@@ -357,49 +357,46 @@ ExecHashJoin(HashJoinState *node)
 					/*
 					 * If we didn't return a tuple, may need to set NeedNewInner
 					 */
-					if (node->js.jointype == JOIN_IN)
-					{
-						node->hj_NeedNewInner = true;
-						break; /* out of loop over hash bucket */
-					}
+					// if (node->js.jointype == JOIN_IN)
+					// {
+					// 	node->hj_NeedNewInner = true;
+					// 	break; /* out of loop over hash bucket */
+					// }
 				}
 			}
-
-			/*
-			 * CSI3130: Now the current inner tuple has run out of matches, so check
-			 * whether to emit a dummy outer-join tuple. If not, loop around to
-			 * get a new inner tuple.
-			 */
 			node->hj_NeedNewInner = true;
+			node->js.ps.ps_InnerTupleSlot = NULL;
+			node->probing_inner = true; //CSI3130: done probing outer relation so now we probe the inner relation
 
-			if (!node->hj_MatchedInner &&
-				node->js.jointype == JOIN_LEFT)
-			{
-				/*
-				 * We are doing an outer join and there were no join matches for
-				 * this inner tuple.  Generate a fake join tuple with nulls for
-				 * the outer tuple, and return it if it passes the non-join quals.
-				 */
-				econtext->ecxt_outertuple = node->hj_NullOuterTupleSlot; // CSI3130: set outer tuple to a null outer tuple
 
-				if (ExecQual(otherqual, econtext, false))
-				{
-					/*
-					 * qualification was satisfied so we project and return the
-					 * slot containing the result tuple using ExecProject().
-					 */
-					TupleTableSlot *result;
+			// if (!node->hj_MatchedInner &&
+			// 	node->js.jointype == JOIN_LEFT)
+			// {
+			// 	/*
+			// 	 * We are doing an outer join and there were no join matches for
+			// 	 * this inner tuple.  Generate a fake join tuple with nulls for
+			// 	 * the outer tuple, and return it if it passes the non-join quals.
+			// 	 */
+			// 	econtext->ecxt_outertuple = node->hj_NullOuterTupleSlot; // CSI3130: set outer tuple to a null outer tuple
 
-					result = ExecProject(node->js.ps.ps_ProjInfo, &isDone);
+			// 	if (ExecQual(otherqual, econtext, false))
+			// 	{
+			// 		/*
+			// 		 * qualification was satisfied so we project and return the
+			// 		 * slot containing the result tuple using ExecProject().
+			// 		 */
+			// 		TupleTableSlot *result;
 
-					if (isDone != ExprEndResult)
-					{
-						node->js.ps.ps_TupFromTlist =
-							(isDone == ExprMultipleResult);
-						return result;
-					}
-				}
-			}
+			// 		result = ExecProject(node->js.ps.ps_ProjInfo, &isDone);
+
+			// 		if (isDone != ExprEndResult)
+			// 		{
+			// 			node->js.ps.ps_TupFromTlist =
+			// 				(isDone == ExprMultipleResult);
+			// 			return result;
+			// 		}
+			// 	}
+			// }
 		}
 
 		// CSI3130: run the entire hash join process again but on the outer tuple now
@@ -496,49 +493,46 @@ ExecHashJoin(HashJoinState *node)
 					/*
 					 * If we didn't return a tuple, may need to set NeedNewOuter
 					 */
-					if (node->js.jointype == JOIN_IN)
-					{
-						node->hj_NeedNewOuter = true;
-						break; /* out of loop over hash bucket */
-					}
+					// if (node->js.jointype == JOIN_IN)
+					// {
+					// 	node->hj_NeedNewOuter = true;
+					// 	break; /* out of loop over hash bucket */
+					// }
 				}
 			}
 
-			/*
-			 * CSI3130: Now the current outer tuple has run out of matches, so check
-			 * whether to emit a dummy outer-join tuple. If not, loop around to
-			 * get a new outer tuple.
-			 */
 			node->hj_NeedNewOuter = true;
+			node->js.ps.ps_OuterTupleSlot = NULL;
+			node->probing_inner = true; //CSI3130: done probing inner relation so now we probe the outer relation
 
-			if (!node->hj_MatchedOuter &&
-				node->js.jointype == JOIN_LEFT)
-			{
-				/*
-				 * We are doing an outer join and there were no join matches for
-				 * this inner tuple.  Generate a fake join tuple with nulls for
-				 * the outer tuple, and return it if it passes the non-join quals.
-				 */
-				econtext->ecxt_innertuple = node->hj_NullInnerTupleSlot; // CSI3130: set inner tuple to a null inner tuple
+			// if (!node->hj_MatchedOuter &&
+			// 	node->js.jointype == JOIN_LEFT)
+			// {
+			// 	/*
+			// 	 * We are doing an outer join and there were no join matches for
+			// 	 * this inner tuple.  Generate a fake join tuple with nulls for
+			// 	 * the outer tuple, and return it if it passes the non-join quals.
+			// 	 */
+			// 	econtext->ecxt_innertuple = node->hj_NullInnerTupleSlot; // CSI3130: set inner tuple to a null inner tuple
 
-				if (ExecQual(otherqual, econtext, false))
-				{
-					/*
-					 * qualification was satisfied so we project and return the
-					 * slot containing the result tuple using ExecProject().
-					 */
-					TupleTableSlot *result;
+			// 	if (ExecQual(otherqual, econtext, false))
+			// 	{
+			// 		/*
+			// 		 * qualification was satisfied so we project and return the
+			// 		 * slot containing the result tuple using ExecProject().
+			// 		 */
+			// 		TupleTableSlot *result;
 
-					result = ExecProject(node->js.ps.ps_ProjInfo, &isDone);
+			// 		result = ExecProject(node->js.ps.ps_ProjInfo, &isDone);
 
-					if (isDone != ExprEndResult)
-					{
-						node->js.ps.ps_TupFromTlist =
-							(isDone == ExprMultipleResult);
-						return result;
-					}
-				}
-			}
+			// 		if (isDone != ExprEndResult)
+			// 		{
+			// 			node->js.ps.ps_TupFromTlist =
+			// 				(isDone == ExprMultipleResult);
+			// 			return result;
+			// 		}
+			// 	}
+			// }
 		}
 	}
 }
