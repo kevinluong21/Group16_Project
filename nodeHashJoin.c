@@ -116,7 +116,7 @@ ExecHashJoin(HashJoinState *node)
 
 	elog(WARNING,"I'm trying ResetExprContext(econtext);");
 	ResetExprContext(econtext);
-
+	elog(WARNING, "Success: ResetExprContext");
 	/*
 	 * if this is the first call, build the hash table for inner relation
 	 */
