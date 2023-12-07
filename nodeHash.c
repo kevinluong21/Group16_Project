@@ -46,7 +46,7 @@ ExecHash(HashState *node)
 {
 	
 
-	
+	elog(WARNING,"Running ExecHash");
 	PlanState  *outerNode;
 	List	   *hashkeys;
 	HashJoinTable hashtable;
