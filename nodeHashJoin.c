@@ -42,8 +42,7 @@ static int ExecHashJoinNewBatch(HashJoinState *hjstate);
  */
 TupleTableSlot * /* return: a tuple or NULL */
 ExecHashJoin(HashJoinState *node)
-{	
-	elog(WARNING,"Running ExecHashJoin");
+{
 	EState *estate;
 	PlanState *outerNode;
 	PlanState *innerNode; // CSI3130: added inner node
@@ -114,6 +113,8 @@ ExecHashJoin(HashJoinState *node)
 	 * storage allocated in the previous tuple cycle.  Note this can't happen
 	 * until we're done projecting out tuples from a join tuple.
 	 */
+
+	elog(WARNING,"I'm trying ResetExprContext(econtext);");
 	ResetExprContext(econtext);
 
 	/*
@@ -162,7 +163,7 @@ ExecHashJoin(HashJoinState *node)
 		 */
 		inner_hashtable = ExecHashTableCreate((Hash *)inner_hashNode->ps.plan,
 											  node->hj_InnerHashOperators);
-		node->inner_hj_HashTable = inner_hashtable;
+		node->inner_hj_HashTable = inner_hashtable;//CSI3130
 
 		/*
 		 * execute the Hash node, to build the hash table
@@ -215,12 +216,12 @@ ExecHashJoin(HashJoinState *node)
 		 */
 		outer_hashtable = ExecHashTableCreate((Hash *)outer_hashNode->ps.plan,
 											  node->hj_OuterHashOperators);
-		node->outer_hj_HashTable = outer_hashtable;
+		node->outer_hj_HashTable = outer_hashtable;//CSI3130
 
 		/*
 		 * execute the Hash node, to build the hash table
 		 */
-		outer_hashNode->hashtable = outer_hashtable;
+		outer_hashNode->hashtable = outer_hashtable;//CSI3130
 		(void)MultiExecProcNode((PlanState *)outer_hashNode);
 
 		/*
@@ -551,15 +552,14 @@ ExecHashJoin(HashJoinState *node)
 	ExecInitHashJoin(HashJoin * node, EState * estate)
 	{
 		HashJoinState *hjstate;
+		 Plan *innerNode;//CSI3130
 		Plan *outerNode;
-		Plan *innerNode;//CSI3130
-		Hash *hashNode;
+		Hash *inner_hashNode;//CSI3130
+		Hash  *outer_hashNode;//CSI3130
 		List *lclauses;
 		List *rclauses;
 		List *hoperators;
 		ListCell *l;
-		Hash *inner_hashNode;//CSI3130
-		Hash *outer_hashNode;//CSI3130
 
 		/*
 		 * create state structure
@@ -698,8 +698,8 @@ ExecHashJoin(HashJoinState *node)
 		}
 		hjstate->hj_OuterHashKeys = lclauses;
 		hjstate->hj_InnerHashKeys = rclauses;
-		hjstate->hj_InnerHashOperators = hoperators;
-		hjstate->hj_OuterHashOperators = hoperators;
+		hjstate->hj_OuterHashOperators = hoperators;//CSI3130
+		hjstate->hj_InnerHashOperators = hoperators;//CSI3130
 		/* child Hash node needs to evaluate inner hash keys, too */
 		((HashState *)innerPlanState(hjstate))->hashkeys = rclauses;
 
@@ -752,11 +752,11 @@ ExecHashJoin(HashJoinState *node)
 		/*
 		 * clean out the tuple table
 		 */
-		ExecClearTuple(&node->js.ps.ps_ResultTupleSlot);
+		ExecClearTuple(node->js.ps.ps_ResultTupleSlot);
 		ExecClearTuple(&node->hj_OuterTupleSlot);
 		ExecClearTuple(&node->hj_InnerTupleSlot); // CSI3130: clear the innertupleslot
 		// CSI3530 and CSI3130 ...
-		ExecClearTuple(node->hj_HashTupleSlot);
+		ExecClearTuple(&node->hj_HashTupleSlot);
 
 		/*
 		 * clean up subtrees
@@ -851,128 +851,125 @@ ExecHashJoin(HashJoinState *node)
 	static int
 	ExecHashJoinNewBatch(HashJoinState * hjstate)
 	{
-	//	HashJoinTable hashtable = hjstate->inner_hj_HashTable;
-	//	int nbatch;
-	//	int curbatch;
-	//	BufFile *innerFile;
-	//	TupleTableSlot *slot;
-	//	uint32 hashvalue;
-//
-	//start_over:
-	//	nbatch = hashtable->nbatch;
-	//	curbatch = hashtable->curbatch;
-//
-	//	if (curbatch > 0)
-	//	{
-	//		/*
-	//		 * We no longer need the previous outer batch file; close it right
-	//		 * away to free disk space.
-	//		 */
-	//		if (hashtable->outerBatchFile[curbatch])
-	//			BufFileClose(hashtable->outerBatchFile[curbatch]);
-	//		hashtable->outerBatchFile[curbatch] = NULL;
-	//	}
-//
-	//	/*
-	//	 * We can always skip over any batches that are completely empty on both
-	//	 * sides.  We can sometimes skip over batches that are empty on only one
-	//	 * side, but there are exceptions:
-	//	 *
-	//	 * 1. In a LEFT JOIN, we have to process outer batches even if the inner
-	//	 * batch is empty.
-	//	 *
-	//	 * 2. If we have increased nbatch since the initial estimate, we have to
-	//	 * scan inner batches since they might contain tuples that need to be
-	//	 * reassigned to later inner batches.
-	//	 *
-	//	 * 3. Similarly, if we have increased nbatch since starting the outer
-	//	 * scan, we have to rescan outer batches in case they contain tuples that
-	//	 * need to be reassigned.
-	//	 */
-	//	curbatch++;
-	//	while (curbatch < nbatch &&
-	//		   (hashtable->outerBatchFile[curbatch] == NULL ||
-	//			hashtable->innerBatchFile[curbatch] == NULL))
-	//	{
-	//		if (hashtable->outerBatchFile[curbatch] &&
-	//			hjstate->js.jointype == JOIN_LEFT)
-	//			break; /* must process due to rule 1 */
-	//		if (hashtable->innerBatchFile[curbatch] &&
-	//			nbatch != hashtable->nbatch_original)
-	//			break; /* must process due to rule 2 */
-	//		if (hashtable->outerBatchFile[curbatch] &&
-	//			nbatch != hashtable->nbatch_outstart)
-	//			break; /* must process due to rule 3 */
-	//		/* We can ignore this batch. */
-	//		/* Release associated temp files right away. */
-	//		if (hashtable->innerBatchFile[curbatch])
-	//			BufFileClose(hashtable->innerBatchFile[curbatch]);
-	//		hashtable->innerBatchFile[curbatch] = NULL;
-	//		if (hashtable->outerBatchFile[curbatch])
-	//			BufFileClose(hashtable->outerBatchFile[curbatch]);
-	//		hashtable->outerBatchFile[curbatch] = NULL;
-	//		curbatch++;
-	//	}
-//
-	//	if (curbatch >= nbatch)
-	//		return curbatch; /* no more batches */
-//
-	//	hashtable->curbatch = curbatch;
-//
-	//	/*
-	//	 * Reload the hash table with the new inner batch (which could be empty)
-	//	 */
-	//	ExecHashTableReset(hashtable);
-//
-	//	innerFile = hashtable->innerBatchFile[curbatch];
-//
-	//	if (innerFile != NULL)
-	//	{
-	//		if (BufFileSeek(innerFile, 0, 0L, SEEK_SET))
-	//			ereport(ERROR,
-	//					(errcode_for_file_access(),
-	//					 errmsg("could not rewind hash-join temporary file: %m")));
-//
-	//		while ((slot = ExecHashJoinGetSavedTuple(hjstate,
-	//												 innerFile,
-	//												 &hashvalue,
-	//												 hjstate->hj_HashTupleSlot)))
-	//		{
-	//			/*
-	//			 * NOTE: some tuples may be sent to future batches.  Also, it is
-	//			 * possible for hashtable->nbatch to be increased here!
-	//			 */
-	//			ExecHashTableInsert(hashtable,
-	//								ExecFetchSlotTuple(slot),
-	//								hashvalue);
-	//		}
-//
-	//		/*
-	//		 * after we build the hash table, the inner batch file is no longer
-	//		 * needed
-	//		 */
-	//		BufFileClose(innerFile);
-	//		hashtable->innerBatchFile[curbatch] = NULL;
-	//	}
-//
-	//	/*
-	//	 * If there's no outer batch file, advance to next batch.
-	//	 */
-	//	if (hashtable->outerBatchFile[curbatch] == NULL)
-	//		goto start_over;
-//
-	//	/*
-	//	 * Rewind outer batch file, so that we can start reading it.
-	//	 */
-	//	if (BufFileSeek(hashtable->outerBatchFile[curbatch], 0, 0L, SEEK_SET))
-	//		ereport(ERROR,
-	//				(errcode_for_file_access(),
-	//				 errmsg("could not rewind hash-join temporary file: %m")));
-//
-	//	return curbatch;
-//
+		HashJoinTable hashtable = hjstate->inner_hj_HashTable;
+		int nbatch;
+		int curbatch;
+		BufFile *innerFile;
+		TupleTableSlot *slot;
+		uint32 hashvalue;
 
-		return 0;
+	start_over:
+		nbatch = hashtable->nbatch;
+		curbatch = hashtable->curbatch;
+
+		if (curbatch > 0)
+		{
+			/*
+			 * We no longer need the previous outer batch file; close it right
+			 * away to free disk space.
+			 */
+			if (hashtable->outerBatchFile[curbatch])
+				BufFileClose(hashtable->outerBatchFile[curbatch]);
+			hashtable->outerBatchFile[curbatch] = NULL;
+		}
+
+		/*
+		 * We can always skip over any batches that are completely empty on both
+		 * sides.  We can sometimes skip over batches that are empty on only one
+		 * side, but there are exceptions:
+		 *
+		 * 1. In a LEFT JOIN, we have to process outer batches even if the inner
+		 * batch is empty.
+		 *
+		 * 2. If we have increased nbatch since the initial estimate, we have to
+		 * scan inner batches since they might contain tuples that need to be
+		 * reassigned to later inner batches.
+		 *
+		 * 3. Similarly, if we have increased nbatch since starting the outer
+		 * scan, we have to rescan outer batches in case they contain tuples that
+		 * need to be reassigned.
+		 */
+		curbatch++;
+		while (curbatch < nbatch &&
+			   (hashtable->outerBatchFile[curbatch] == NULL ||
+				hashtable->innerBatchFile[curbatch] == NULL))
+		{
+			if (hashtable->outerBatchFile[curbatch] &&
+				hjstate->js.jointype == JOIN_LEFT)
+				break; /* must process due to rule 1 */
+			if (hashtable->innerBatchFile[curbatch] &&
+				nbatch != hashtable->nbatch_original)
+				break; /* must process due to rule 2 */
+			if (hashtable->outerBatchFile[curbatch] &&
+				nbatch != hashtable->nbatch_outstart)
+				break; /* must process due to rule 3 */
+			/* We can ignore this batch. */
+			/* Release associated temp files right away. */
+			if (hashtable->innerBatchFile[curbatch])
+				BufFileClose(hashtable->innerBatchFile[curbatch]);
+			hashtable->innerBatchFile[curbatch] = NULL;
+			if (hashtable->outerBatchFile[curbatch])
+				BufFileClose(hashtable->outerBatchFile[curbatch]);
+			hashtable->outerBatchFile[curbatch] = NULL;
+			curbatch++;
+		}
+
+		if (curbatch >= nbatch)
+			return curbatch; /* no more batches */
+
+		hashtable->curbatch = curbatch;
+
+		/*
+		 * Reload the hash table with the new inner batch (which could be empty)
+		 */
+		ExecHashTableReset(hashtable);
+
+		innerFile = hashtable->innerBatchFile[curbatch];
+
+		if (innerFile != NULL)
+		{
+			if (BufFileSeek(innerFile, 0, 0L, SEEK_SET))
+				ereport(ERROR,
+						(errcode_for_file_access(),
+						 errmsg("could not rewind hash-join temporary file: %m")));
+
+			while ((slot = ExecHashJoinGetSavedTuple(hjstate,
+													 innerFile,
+													 &hashvalue,
+													 hjstate->hj_HashTupleSlot)))
+			{
+				/*
+				 * NOTE: some tuples may be sent to future batches.  Also, it is
+				 * possible for hashtable->nbatch to be increased here!
+				 */
+				ExecHashTableInsert(hashtable,
+									ExecFetchSlotTuple(slot),
+									hashvalue);
+			}
+
+			/*
+			 * after we build the hash table, the inner batch file is no longer
+			 * needed
+			 */
+			BufFileClose(innerFile);
+			hashtable->innerBatchFile[curbatch] = NULL;
+		}
+
+		/*
+		 * If there's no outer batch file, advance to next batch.
+		 */
+		if (hashtable->outerBatchFile[curbatch] == NULL)
+			goto start_over;
+
+		/*
+		 * Rewind outer batch file, so that we can start reading it.
+		 */
+		if (BufFileSeek(hashtable->outerBatchFile[curbatch], 0, 0L, SEEK_SET))
+			ereport(ERROR,
+					(errcode_for_file_access(),
+					 errmsg("could not rewind hash-join temporary file: %m")));
+
+		return curbatch;
 	}
 
 	/*
@@ -1071,9 +1068,9 @@ ExecHashJoin(HashJoinState *node)
 		 * inner subnode, then we can just re-use the existing hash table without
 		 * rebuilding it.
 		 */
-		if (node->inner_hj_HashTable != NULL)//CSI3130
+		if (node->inner_hj_HashTable != NULL)
 		{
-			if (node->inner_hj_HashTable->nbatch == 1 &&//CSI3130	
+			if (node->inner_hj_HashTable->nbatch == 1 &&
 				((PlanState *)node)->righttree->chgParam == NULL)
 			{
 				/*
@@ -1093,8 +1090,8 @@ ExecHashJoin(HashJoinState *node)
 			else
 			{
 				/* must destroy and rebuild hash table */
-				ExecHashTableDestroy(node->inner_hj_HashTable);//CSI3130
-				node->inner_hj_HashTable = NULL;//CSI3130
+				ExecHashTableDestroy(node->inner_hj_HashTable);
+				node->inner_hj_HashTable = NULL;
 
 				/*
 				 * if chgParam of subnode is not null then plan will be re-scanned
@@ -1105,11 +1102,10 @@ ExecHashJoin(HashJoinState *node)
 			}
 		}
 
-		/*
-		// Always reset intra-tuple state 
-		node->inner_hj_CurHashValue = 0;//CSI3130
-		node->inner_hj_CurBucketNo = 0;//CSI3130
-		node->inner_hj_CurTuple = NULL;//CSI3130
+		/* Always reset intra-tuple state */
+		node->inner_hj_CurHashValue = 0;
+		node->inner_hj_CurBucketNo = 0;
+		node->inner_hj_CurTuple = NULL;
 
 		node->js.ps.ps_OuterTupleSlot = NULL;
 		node->js.ps.ps_TupFromTlist = false;
@@ -1117,7 +1113,6 @@ ExecHashJoin(HashJoinState *node)
 		node->hj_MatchedOuter = false;
 		node->hj_FirstOuterTupleSlot = NULL;
 
-		*/
 		/*
 		 * if chgParam of subnode is not null then plan will be re-scanned by
 		 * first ExecProcNode.

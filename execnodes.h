@@ -1142,7 +1142,7 @@ typedef struct HashJoinState
 	bool		hj_InnerNotEmpty; //CSI3130: added bool to indicate if the inner relation is not empty
 	bool		hj_OuterNotEmpty;
 	bool		probing_inner; //CSI3130: indicates whether the inner table is being probed (true), or outer otherwise (false)
-
+//DONE
 } HashJoinState;
 
 
